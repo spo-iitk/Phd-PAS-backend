@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bytes"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -159,24 +158,41 @@ func fetchProformaForStudent(ctx *gin.Context, pid uint, jp *Proforma) error {
 	return tx.Error
 }
 
-func fetchProformaForEligibleStudent(ctx *gin.Context, rid uint, student *rc.StudentRecruitmentCycle, jps *[]Proforma) error {
+func fetchProformaForEligibleStudent(
+	ctx *gin.Context,
+	rid uint,
+	student *rc.StudentRecruitmentCycle,
+	jps *[]Proforma,
+) error {
 
-	eligibility := bytes.Repeat([]byte("_"), 223)
-	eligibility[student.ProgramDepartmentID] = byte('1')
-
-	secondary_eligibility := bytes.Repeat([]byte("_"), 223)
-	secondary_eligibility[student.SecondaryProgramDepartmentID] = byte('1')
-
-	subQuery := db.WithContext(ctx).Model(&ApplicationResume{}).
+	// Subquery: exclude proformas already applied to by this student
+	subQuery := db.WithContext(ctx).
+		Model(&ApplicationResume{}).
 		Where("student_recruitment_cycle_id = ?", student.ID).
 		Select("proforma_id")
 
+	// Fetch PhD stage (used in additional eligibility)
 	stageFetch, _ := extractStudentStageofPhD(ctx)
 
 	tx := db.WithContext(ctx).
 		Where(
-			"recruitment_cycle_id = ? AND is_approved = ? AND deadline > ? AND (eligibility LIKE ? or eligibility like ?) AND cpi_cutoff <= ? AND id NOT IN (?) AND additional_eligibility like (?)",
-			rid, true, time.Now().UnixMilli(), string(eligibility)+"%", string(secondary_eligibility)+"%", student.CPI, subQuery, "%"+stageFetch+"%").
+			`
+			recruitment_cycle_id = ?
+			AND is_approved = ?
+			AND deadline > ?
+			AND SUBSTRING(eligibility, ?, 1) = '1'
+			AND cpi_cutoff <= ?
+			AND id NOT IN (?)
+			AND additional_eligibility LIKE ?
+			`,
+			rid,
+			true,
+			time.Now().UnixMilli(),
+			student.ProgramDepartmentID+1, // SQL strings are 1-indexed
+			student.CPI,
+			subQuery,
+			"%"+stageFetch+"%",
+		).
 		Select(
 			"id",
 			"company_name",
@@ -188,6 +204,7 @@ func fetchProformaForEligibleStudent(ctx *gin.Context, rid uint, student *rc.Stu
 		).
 		Order("deadline").
 		Find(jps)
+
 	return tx.Error
 }
 
