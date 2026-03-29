@@ -7,8 +7,8 @@ import (
 
 func AdminRouter(mail_channel chan mail.Mail, r *gin.Engine) {
 	r.GET("/api/admin/rc", getAllRCHandler)
-	// r.POST("/api/admin/rc", postRCHandler)
-	// r.PUT("/api/admin/rc", editRCHandler)
+	r.POST("/api/admin/rc", postRCHandler)
+	r.PUT("/api/admin/rc", editRCHandler)
 
 	admin := r.Group("/api/admin/rc/:rid")
 	admin.Use(checkAdminAccessToRC())

@@ -20,6 +20,7 @@ type Proforma struct {
 	HideDetails               bool         `json:"hide_details" gorm:"default:true"`
 	ActiveHR                  string       `json:"active_hr"`
 	Role                      string       `json:"role"`
+  Cost_to_company_foreign     string	   `json:"cost_to_company_foreign"`
 	Profile                   string       `json:"profile"`
 	TentativeJobLocation      string       `json:"tentative_job_location"`
 	JobDescription            string       `json:"job_description"`
